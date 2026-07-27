@@ -75,6 +75,10 @@ SPREADSHEET_ID = get_env("SPREADSHEET_ID")
 SHEET_NAME = get_env("SHEET_NAME", "Sheet1")
 SUMMARY_SHEET_NAME = get_env("SUMMARY_SHEET_NAME", "Sumar Ore")
 CREDENTIALS_FILE = get_env("GOOGLE_CREDENTIALS_FILE", "credentials.json")
+# Pe hosting-uri unde nu poți urca un fișier (ex. Railway), poți lipi tot
+# conținutul credentials.json ca text într-o singură variabilă de mediu.
+# Dacă e completată, are prioritate față de GOOGLE_CREDENTIALS_FILE.
+CREDENTIALS_JSON = get_env("GOOGLE_CREDENTIALS_JSON")
 
 # (opțional) restricționează botul la un singur grup / un singur topic (forum)
 ALLOWED_CHAT_ID = get_env("ALLOWED_CHAT_ID")
@@ -117,7 +121,17 @@ _SUMMARY_WORKSHEET_CACHE = {"worksheet": None}
 def get_spreadsheet():
     if _SPREADSHEET_CACHE["spreadsheet"] is not None:
         return _SPREADSHEET_CACHE["spreadsheet"]
-    creds = Credentials.from_service_account_file(CREDENTIALS_FILE, scopes=SCOPES)
+    if CREDENTIALS_JSON:
+        try:
+            info = json.loads(CREDENTIALS_JSON)
+        except json.JSONDecodeError as exc:
+            raise SystemExit(
+                "GOOGLE_CREDENTIALS_JSON nu conține JSON valid — verifică să fi lipit tot "
+                f"conținutul fișierului credentials.json, fără să lipsească vreo bucată. ({exc})"
+            )
+        creds = Credentials.from_service_account_info(info, scopes=SCOPES)
+    else:
+        creds = Credentials.from_service_account_file(CREDENTIALS_FILE, scopes=SCOPES)
     client = gspread.authorize(creds)
     spreadsheet = client.open_by_key(SPREADSHEET_ID)
     _SPREADSHEET_CACHE["spreadsheet"] = spreadsheet
